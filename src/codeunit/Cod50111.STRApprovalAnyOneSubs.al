@@ -6,6 +6,7 @@ codeunit 50111 "STR Approval Any One Subs."
 
     var
         ProcessingPeers: Boolean;
+        ProcessingLowerLevels: Boolean;
 
     [EventSubscriber(ObjectType::Table, Database::"Approval Entry", 'OnAfterModifyEvent', '', false, false)]
     local procedure ApprovalEntry_OnAfterModify_CloseSequencePeers(var Rec: Record "Approval Entry"; var xRec: Record "Approval Entry"; RunTrigger: Boolean)
@@ -158,5 +159,31 @@ codeunit 50111 "STR Approval Any One Subs."
             exit;
         BodyText := BodyText.Replace('(Custom Link)', 'Request to approval');
         TempEmailItem.SetBodyText(BodyText);
+    end;
+
+    [EventSubscriber(ObjectType::Table, Database::"Approval Entry", 'OnAfterModifyEvent', '', false, false)]
+    local procedure ApprovalEntry_OnAfterModify_CloseLowerLevels(var Rec: Record "Approval Entry"; var xRec: Record "Approval Entry"; RunTrigger: Boolean)
+    var
+        LowerApprovalEntry: Record "Approval Entry";
+    begin
+        if ProcessingLowerLevels then
+            exit;
+        if Rec.IsTemporary() then
+            exit;
+        if Rec.Status <> Rec.Status::Approved then
+            exit;
+
+        ProcessingLowerLevels := true;
+        LowerApprovalEntry.SetRange("Workflow Step Instance ID", Rec."Workflow Step Instance ID");
+        LowerApprovalEntry.SetFilter("Sequence No.", '<%1', Rec."Sequence No.");
+        LowerApprovalEntry.SetFilter(Status, '%1|%2', LowerApprovalEntry.Status::Open, LowerApprovalEntry.Status::Created);
+        if LowerApprovalEntry.FindSet() then
+            repeat
+                LowerApprovalEntry.Status := LowerApprovalEntry.Status::Approved;
+                LowerApprovalEntry."Last Date-Time Modified" := CurrentDateTime();
+                LowerApprovalEntry."Last Modified By User ID" := CopyStr(UserId(), 1, MaxStrLen(LowerApprovalEntry."Last Modified By User ID"));
+                LowerApprovalEntry.Modify(false);
+            until LowerApprovalEntry.Next() = 0;
+        ProcessingLowerLevels := false;
     end;
 }
