@@ -7,6 +7,7 @@ codeunit 50111 "STR Approval Any One Subs."
     var
         ProcessingPeers: Boolean;
         ProcessingLowerLevels: Boolean;
+        ProcessingHigherLevels: Boolean;
 
     [EventSubscriber(ObjectType::Table, Database::"Approval Entry", 'OnAfterModifyEvent', '', false, false)]
     local procedure ApprovalEntry_OnAfterModify_CloseSequencePeers(var Rec: Record "Approval Entry"; var xRec: Record "Approval Entry"; RunTrigger: Boolean)
@@ -185,5 +186,31 @@ codeunit 50111 "STR Approval Any One Subs."
                 LowerApprovalEntry.Modify(false);
             until LowerApprovalEntry.Next() = 0;
         ProcessingLowerLevels := false;
+    end;
+
+    [EventSubscriber(ObjectType::Table, Database::"Approval Entry", 'OnAfterModifyEvent', '', false, false)]
+    local procedure ApprovalEntry_OnAfterModify_CloseHigherLevels(var Rec: Record "Approval Entry"; var xRec: Record "Approval Entry"; RunTrigger: Boolean)
+    var
+        HigherApprovalEntry: Record "Approval Entry";
+    begin
+        if ProcessingHigherLevels then
+            exit;
+        if Rec.IsTemporary() then
+            exit;
+        if Rec.Status <> Rec.Status::Approved then
+            exit;
+
+        ProcessingHigherLevels := true;
+        HigherApprovalEntry.SetRange("Workflow Step Instance ID", Rec."Workflow Step Instance ID");
+        HigherApprovalEntry.SetFilter("Sequence No.", '>%1', Rec."Sequence No.");
+        HigherApprovalEntry.SetFilter(Status, '%1|%2', HigherApprovalEntry.Status::Open, HigherApprovalEntry.Status::Created);
+        if HigherApprovalEntry.FindSet() then
+            repeat
+                HigherApprovalEntry.Status := HigherApprovalEntry.Status::Approved;
+                HigherApprovalEntry."Last Date-Time Modified" := CurrentDateTime();
+                HigherApprovalEntry."Last Modified By User ID" := CopyStr(UserId(), 1, MaxStrLen(HigherApprovalEntry."Last Modified By User ID"));
+                HigherApprovalEntry.Modify(false);
+            until HigherApprovalEntry.Next() = 0;
+        ProcessingHigherLevels := false;
     end;
 }
