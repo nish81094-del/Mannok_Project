@@ -35,4 +35,8 @@ enum 50100 "STR Master Data Type"
     {
         Caption = 'Material Type';
     }
+    value(8; "Business Type")
+    {
+        Caption = 'Business Type';
+    }
 }

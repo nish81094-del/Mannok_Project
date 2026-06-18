@@ -41,5 +41,12 @@ tableextension 50100 "STR Customer Ext" extends Customer
             DataClassification = CustomerContent;
             ToolTip = 'The latitude coordinate of the customer''s location.';
         }
+        field(50106; "STR Business Type"; Code[20])
+        {
+            Caption = 'Business Type';
+            DataClassification = CustomerContent;
+            TableRelation = "STR Master Data Setup"."STR Code" where("STR Type" = const("Business Type"));
+            ToolTip = 'The business type of the customer.';
+        }
     }
 }

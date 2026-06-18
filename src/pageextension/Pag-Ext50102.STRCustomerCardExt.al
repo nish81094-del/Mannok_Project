@@ -31,6 +31,11 @@ pageextension 50102 "STR Customer Card Ext" extends "Customer Card"
                     ApplicationArea = All;
                     ToolTip = 'Indicates the customer is exempt from VAT.';
                 }
+                field("Business Type"; Rec."STR Business Type")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'The business type of the customer.';
+                }
                 field("EDI Number (Temp)"; Rec."STR EDI Number (Temp)")
                 {
                     ApplicationArea = All;
@@ -51,6 +56,7 @@ pageextension 50102 "STR Customer Card Ext" extends "Customer Card"
                     ApplicationArea = All;
                     ToolTip = 'The latitude coordinate of the customer''s location.';
                 }
+
             }
         }
     }
