@@ -193,6 +193,64 @@ codeunit 50111 "STR Approval Any One Subs."
         TempEmailItem.SetBodyText(BodyText);
     end;
 
+    [EventSubscriber(ObjectType::Table, Database::"Approval Entry", 'OnAfterInsertEvent', '', false, false)]
+    local procedure ApprovalEntry_OnAfterInsert_KeepCustomerBlocked(var Rec: Record "Approval Entry"; RunTrigger: Boolean)
+    var
+        Customer: Record Customer;
+        RecRef: RecordRef;
+    begin
+        if Rec.IsTemporary() then
+            exit;
+        if not (Rec.Status in [Rec.Status::Open, Rec.Status::Created]) then
+            exit;
+        if not RecRef.Get(Rec."Record ID to Approve") then
+            exit;
+        if RecRef.Number <> Database::Customer then
+            exit;
+
+        RecRef.SetTable(Customer);
+        if not Customer.Get(Customer."No.") then
+            exit;
+        if Customer.Blocked <> Customer.Blocked::" " then
+            exit;
+
+        Customer.Blocked := Customer.Blocked::All;
+        Customer."Last Date Modified" := Today();
+        Customer.Modify(false);
+    end;
+
+    [EventSubscriber(ObjectType::Table, Database::"Approval Entry", 'OnAfterModifyEvent', '', false, false)]
+    local procedure ApprovalEntry_OnAfterModify_UnblockCustomer(var Rec: Record "Approval Entry"; var xRec: Record "Approval Entry"; RunTrigger: Boolean)
+    var
+        PendingApprovalEntry: Record "Approval Entry";
+        Customer: Record Customer;
+        RecRef: RecordRef;
+    begin
+        if Rec.IsTemporary() then
+            exit;
+        if Rec.Status <> Rec.Status::Approved then
+            exit;
+        if not RecRef.Get(Rec."Record ID to Approve") then
+            exit;
+        if RecRef.Number <> Database::Customer then
+            exit;
+
+        PendingApprovalEntry.SetRange("Record ID to Approve", Rec."Record ID to Approve");
+        PendingApprovalEntry.SetRange("Date-Time Sent for Approval", Rec."Date-Time Sent for Approval");
+        PendingApprovalEntry.SetFilter(Status, '%1|%2', PendingApprovalEntry.Status::Open, PendingApprovalEntry.Status::Created);
+        if not PendingApprovalEntry.IsEmpty() then
+            exit;
+
+        RecRef.SetTable(Customer);
+        if not Customer.Get(Customer."No.") then
+            exit;
+        if Customer.Blocked = Customer.Blocked::" " then
+            exit;
+
+        Customer.Validate(Blocked, Customer.Blocked::" ");
+        Customer.Modify(true);
+    end;
+
     [EventSubscriber(ObjectType::Table, Database::"Approval Entry", 'OnAfterModifyEvent', '', false, false)]
     local procedure ApprovalEntry_OnAfterModify_CloseLowerLevels(var Rec: Record "Approval Entry"; var xRec: Record "Approval Entry"; RunTrigger: Boolean)
     var
